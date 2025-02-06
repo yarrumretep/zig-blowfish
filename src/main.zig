@@ -17,6 +17,8 @@ pub fn main() !void {
     var key: []const u8 = undefined;
     var in = std.io.getStdIn().reader();
     var out = std.io.getStdOut().writer();
+    var infile: std.fs.File = undefined;
+    var outfile: std.fs.File = undefined;
 
     if (options.key) |k| {
         key = k;
@@ -31,16 +33,14 @@ pub fn main() !void {
         return Error.KeyRequired;
     }
 
-    if (options.infile) |infile| {
-        const file = try std.fs.cwd().openFile(infile, .{});
-        defer file.close();
-        in = file.reader();
+    if (options.infile) |fname| {
+        infile = try std.fs.cwd().openFile(fname, .{});
+        in = infile.reader();
     }
 
-    if (options.outfile) |outfile| {
-        const file = try std.fs.cwd().createFile(outfile, .{ .truncate = true });
-        defer file.close();
-        out = file.writer();
+    if (options.outfile) |fname| {
+        outfile = try std.fs.cwd().createFile(fname, .{ .truncate = true });
+        out = outfile.writer();
     }
 
     if (options.positional.operation == .encrypt) {
@@ -49,6 +49,13 @@ pub fn main() !void {
     } else {
         var reader = BlowfishReader.blowfishReader(key, in);
         try reader.decrypt(out);
+    }
+
+    if (options.infile) |_| {
+        infile.close();
+    }
+    if (options.outfile) |_| {
+        outfile.close();
     }
 }
 
