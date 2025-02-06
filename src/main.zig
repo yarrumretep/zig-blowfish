@@ -41,12 +41,15 @@ pub fn main() !void {
         out = outfile.writer();
     }
 
-    if (options.positional.operation == .encrypt) {
-        var writer = BlowfishWriter.blowfishWriter(key, out);
-        try writer.encrypt(in);
-    } else {
-        var reader = BlowfishReader.blowfishReader(key, in);
-        try reader.decrypt(out);
+    switch (options.positional.operation) {
+        .encrypt => {
+            var writer = BlowfishWriter.blowfishWriter(key, out);
+            try writer.encrypt(in);
+        },
+        .decrypt => {
+            var reader = BlowfishReader.blowfishReader(key, in);
+            try reader.decrypt(out);
+        },
     }
 
     if (options.keyfile) |_| {
