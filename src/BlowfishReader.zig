@@ -54,7 +54,7 @@ pub fn BlowfishReader(comptime ReaderType: type) type {
         pub fn read(self: *Self, d: []u8) Error!usize {
             var dest = d;
             var count: usize = 0;
-            // First try reading from the already buffered data onto the destination.
+            // First try reading from the already buffered data into the destination.
             if (self.current_decrypted.len != 0) {
                 count = @min(self.current_decrypted.len, dest.len);
                 @memcpy(dest[0..count], self.current_decrypted[0..count]);
