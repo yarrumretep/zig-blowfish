@@ -27,9 +27,7 @@ pub fn main() !void {
         defer file.close();
 
         key = try file.readToEndAlloc(gpa.allocator(), 4096);
-        defer gpa.allocator().free(key);
     } else {
-        std.debug.print("Either key or keyfile must be specified\n", .{});
         return Error.KeyRequired;
     }
 
@@ -51,6 +49,9 @@ pub fn main() !void {
         try reader.decrypt(out);
     }
 
+    if (options.keyfile) |_| {
+        gpa.allocator().free(key);
+    }
     if (options.infile) |_| {
         infile.close();
     }
