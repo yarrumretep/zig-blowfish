@@ -1,4 +1,5 @@
 .{
+    .fingerprint = 0x179a4441e94ad6d1,
     // This is the default name used by packages depending on this one. For
     // example, when a user runs `zig fetch --save <url>`, this field is used
     // as the key in the `dependencies` table. Although the user can choose a

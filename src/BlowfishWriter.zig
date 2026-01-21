@@ -86,13 +86,13 @@ pub fn blowfishWriter(key: []const u8, underlying_stream: anytype) BlowfishWrite
 
 test "writer" {
     const alloc = std.testing.allocator;
-    var buffer = std.ArrayList(u8).init(alloc);
-    defer buffer.deinit();
-    var writer = blowfishWriter("TESTKEY", buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(alloc);
+    var bfwriter = blowfishWriter("TESTKEY", buffer.writer(alloc));
 
     const unencrypted: [8]u8 = .{ 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-    const wrote = try writer.write(&unencrypted);
-    try writer.flush();
+    const wrote = try bfwriter.write(&unencrypted);
+    try bfwriter.flush();
 
     try std.testing.expectEqual(wrote, 8);
     const encrypted: [8]u8 = .{ 0xDF, 0x33, 0x3F, 0xD2, 0x30, 0xA7, 0x1B, 0xB4 };
@@ -101,14 +101,14 @@ test "writer" {
 
 test "weird buffer lengths" {
     const alloc = std.testing.allocator;
-    var buffer = std.ArrayList(u8).init(alloc);
-    defer buffer.deinit();
-    var writer = blowfishWriter("TESTKEY", buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(alloc);
+    var bfwriter = blowfishWriter("TESTKEY", buffer.writer(alloc));
 
     const unencrypted: [8]u8 = .{ 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-    var wrote = try writer.write(unencrypted[0..3]);
-    wrote += try writer.write(unencrypted[3..]);
-    try writer.flush();
+    var wrote = try bfwriter.write(unencrypted[0..3]);
+    wrote += try bfwriter.write(unencrypted[3..]);
+    try bfwriter.flush();
 
     try std.testing.expectEqual(wrote, 8);
     const encrypted: [8]u8 = .{ 0xDF, 0x33, 0x3F, 0xD2, 0x30, 0xA7, 0x1B, 0xB4 };
@@ -117,18 +117,18 @@ test "weird buffer lengths" {
 
 test "more weird buffer lengths" {
     const alloc = std.testing.allocator;
-    var buffer = std.ArrayList(u8).init(alloc);
-    defer buffer.deinit();
-    var writer = blowfishWriter("TESTKEY", buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(alloc);
+    var bfwriter = blowfishWriter("TESTKEY", buffer.writer(alloc));
 
     const unencrypted: [16]u8 = .{ 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02 };
-    var wrote = try writer.write(unencrypted[0..3]);
+    var wrote = try bfwriter.write(unencrypted[0..3]);
     try std.testing.expectEqual(0, buffer.items.len);
-    wrote += try writer.write(unencrypted[3..10]);
+    wrote += try bfwriter.write(unencrypted[3..10]);
     try std.testing.expectEqual(8, buffer.items.len);
-    wrote += try writer.write(unencrypted[10..]);
+    wrote += try bfwriter.write(unencrypted[10..]);
     try std.testing.expectEqual(16, buffer.items.len);
-    try writer.flush();
+    try bfwriter.flush();
 
     try std.testing.expectEqual(wrote, 16);
     const encrypted: [16]u8 = .{ 0xDF, 0x33, 0x3F, 0xD2, 0x30, 0xA7, 0x1B, 0xB4, 0xDF, 0x33, 0x3F, 0xD2, 0x30, 0xA7, 0x1B, 0xB4 };
@@ -137,15 +137,15 @@ test "more weird buffer lengths" {
 
 test "padding" {
     const alloc = std.testing.allocator;
-    var buffer = std.ArrayList(u8).init(alloc);
-    defer buffer.deinit();
-    var writer = blowfishWriter("TESTKEY", buffer.writer());
+    var buffer: std.ArrayList(u8) = .empty;
+    defer buffer.deinit(alloc);
+    var bfwriter = blowfishWriter("TESTKEY", buffer.writer(alloc));
 
     const unencrypted: [5]u8 = .{ 0x00, 0x00, 0x00, 0x01, 0x00 };
-    const wrote = try writer.write(&unencrypted);
+    const wrote = try bfwriter.write(&unencrypted);
     try std.testing.expectEqual(wrote, 5);
     try std.testing.expectEqual(0, buffer.items.len);
-    try writer.flush();
+    try bfwriter.flush();
     try std.testing.expectEqual(8, buffer.items.len);
 
     const encrypted: [8]u8 = .{ 0x6c, 0x44, 0xdc, 0xed, 0x6c, 0xa6, 0x34, 0x79 };
