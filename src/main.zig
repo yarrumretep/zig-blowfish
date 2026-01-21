@@ -9,16 +9,12 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var args = try std.process.argsWithAllocator(gpa.allocator());
-    defer args.deinit();
+    const args = try std.process.argsAlloc(gpa.allocator());
+    defer std.process.argsFree(gpa.allocator(), args);
 
-    const options = flags.parseOrExit(&args, "blowfish", Flags, .{});
+    const options = flags.parse(args, "blowfish", Flags, .{});
 
     var key: []const u8 = undefined;
-    var in = std.io.getStdIn().reader();
-    var out = std.io.getStdOut().writer();
-    var infile: std.fs.File = undefined;
-    var outfile: std.fs.File = undefined;
 
     if (options.key) |k| {
         key = k;
@@ -30,36 +26,56 @@ pub fn main() !void {
     } else {
         return Error.KeyRequired;
     }
+    defer if (options.keyfile) |_| {
+        gpa.allocator().free(key);
+    };
 
+    // Buffers for file I/O
+    var file_read_buf: [4096]u8 = undefined;
+    var file_write_buf: [4096]u8 = undefined;
+    var bf_buf: [4096]u8 = undefined;
+
+    // Get input file/stdin
+    var infile: std.fs.File = undefined;
+    var in_reader: std.fs.File.Reader = undefined;
     if (options.infile) |fname| {
         infile = try std.fs.cwd().openFile(fname, .{});
-        in = infile.reader();
+        in_reader = infile.readerStreaming(&file_read_buf);
+    } else {
+        infile = std.fs.File.stdin();
+        in_reader = infile.readerStreaming(&file_read_buf);
     }
+    defer if (options.infile) |_| {
+        infile.close();
+    };
 
+    // Get output file/stdout
+    var outfile: std.fs.File = undefined;
+    var out_writer: std.fs.File.Writer = undefined;
     if (options.outfile) |fname| {
         outfile = try std.fs.cwd().createFile(fname, .{ .truncate = true });
-        out = outfile.writer();
+        out_writer = outfile.writerStreaming(&file_write_buf);
+    } else {
+        outfile = std.fs.File.stdout();
+        out_writer = outfile.writerStreaming(&file_write_buf);
+    }
+    defer {
+        // Flush writer before closing
+        out_writer.interface.flush() catch {};
+        if (options.outfile) |_| {
+            outfile.close();
+        }
     }
 
     switch (options.positional.operation) {
         .encrypt => {
-            var writer = BlowfishWriter.blowfishWriter(key, out);
-            try writer.encrypt(in);
+            var bfwriter = BlowfishWriter.blowfishWriter(key, &out_writer.interface, &bf_buf);
+            try bfwriter.encryptAll(&in_reader.interface);
         },
         .decrypt => {
-            var reader = BlowfishReader.blowfishReader(key, in);
-            try reader.decrypt(out);
+            var bfreader = BlowfishReader.blowfishReader(key, &in_reader.interface, &bf_buf);
+            try bfreader.decryptAll(&out_writer.interface);
         },
-    }
-
-    if (options.keyfile) |_| {
-        gpa.allocator().free(key);
-    }
-    if (options.infile) |_| {
-        infile.close();
-    }
-    if (options.outfile) |_| {
-        outfile.close();
     }
 }
 
